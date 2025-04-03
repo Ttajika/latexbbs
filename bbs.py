@@ -1,10 +1,18 @@
 import streamlit as st
-import sqlite3
+import psycopg2
 import re
+import os
 
-# === DB初期化と接続 ===
+# === DB接続 ===
 def get_connection():
-    return sqlite3.connect("bbs.db", check_same_thread=False)
+    return psycopg2.connect(
+        dbname=st.secrets["dbname"],
+        user=st.secrets["user"],
+        password=st.secrets["password"],
+        host=st.secrets["host"],
+        port=st.secrets["port"]
+    )
+
 
 def init_db():
     conn = get_connection()
