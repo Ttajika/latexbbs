@@ -6,11 +6,11 @@ import os
 # === DB接続 ===
 def get_connection():
     return psycopg2.connect(
-        dbname=st.secrets["dbname"],
-        user=st.secrets["user"],
-        password=st.secrets["password"],
-        host=st.secrets["host"],
-        port=st.secrets["port"]
+        dbname=st.secrets["bbs_db_ri0g"],
+        user=st.secrets["bbs_db_ri0g_user"],
+        password=st.secrets["ucavd5SBpCmxnm1c9hCXSgv9Ypc6q3Ph"],
+        host=st.secrets["dpg-cvn7cmbuibrs73ba1c20-a"],
+        port=st.secrets["5432"]
     )
 
 
