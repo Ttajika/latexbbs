@@ -23,12 +23,12 @@ def init_db():
     # c.execute("DROP TABLE IF EXISTS threads")
 
     # 正しい構造で作成
-    c.execute('''CREATE TABLE threads (
+    c.execute('''CREATE TABLE IF NOT EXISTS threads (
                     id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
-    c.execute('''CREATE TABLE posts (
+    c.execute('''CREATE TABLE IF NOT EXISTS posts (
                     id SERIAL PRIMARY KEY,
                     thread_id INTEGER REFERENCES threads(id),
                     author TEXT,
