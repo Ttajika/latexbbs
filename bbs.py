@@ -17,23 +17,28 @@ def get_connection():
 def init_db():
     conn = get_connection()
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS threads (
+
+    # 開発中だけ！一度テーブルを削除
+    c.execute("DROP TABLE IF EXISTS posts")
+    c.execute("DROP TABLE IF EXISTS threads")
+
+    # 正しい構造で作成
+    c.execute('''CREATE TABLE threads (
                     id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS posts (
+    c.execute('''CREATE TABLE posts (
                     id SERIAL PRIMARY KEY,
-                    thread_id INTEGER,
+                    thread_id INTEGER REFERENCES threads(id),
                     author TEXT,
                     content TEXT,
-                    parent_id INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY(thread_id) REFERENCES threads(id),
-                    FOREIGN KEY(parent_id) REFERENCES posts(id)
+                    parent_id INTEGER REFERENCES posts(id),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
     conn.commit()
     conn.close()
+
 
 # === LaTeXレンダリング
 def render_content(content):
