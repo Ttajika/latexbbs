@@ -18,9 +18,9 @@ def init_db():
     conn = get_connection()
     c = conn.cursor()
 
-    # 開発中だけ！一度テーブルを削除
-    c.execute("DROP TABLE IF EXISTS posts")
-    c.execute("DROP TABLE IF EXISTS threads")
+    # # 開発中だけ！一度テーブルを削除
+    # c.execute("DROP TABLE IF EXISTS posts")
+    # c.execute("DROP TABLE IF EXISTS threads")
 
     # 正しい構造で作成
     c.execute('''CREATE TABLE threads (
