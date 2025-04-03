@@ -3,10 +3,7 @@ import psycopg2
 import re
 import os
 
-
-
 # === DB接続 ===
-
 def get_connection():
     return psycopg2.connect(
         dbname=os.environ["dbname"],
@@ -16,18 +13,17 @@ def get_connection():
         port=os.environ["port"]
     )
 
-
-
+# === DB初期化 ===
 def init_db():
     conn = get_connection()
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS threads (
-                    id INTEGER PRIMARY KEY,
+                    id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
     c.execute('''CREATE TABLE IF NOT EXISTS posts (
-                    id INTEGER PRIMARY KEY,
+                    id SERIAL PRIMARY KEY,
                     thread_id INTEGER,
                     author TEXT,
                     content TEXT,
@@ -39,7 +35,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# === LaTeXレンダリング（$$...$$をst.latex、その他はmarkdown）
+# === LaTeXレンダリング
 def render_content(content):
     parts = re.split(r'(\$\$.*?\$\$)', content, flags=re.DOTALL)
     for part in parts:
@@ -48,13 +44,13 @@ def render_content(content):
         else:
             st.markdown(part, unsafe_allow_html=True)
 
-# === 投稿の再帰表示 ===
+# === 投稿の再帰表示
 def render_posts(conn, thread_id, parent_id=None, level=0):
     c = conn.cursor()
     if parent_id is None:
-        c.execute("SELECT id, author, content, created_at FROM posts WHERE thread_id=? AND parent_id IS NULL ORDER BY created_at", (thread_id,))
+        c.execute("SELECT id, author, content, created_at FROM posts WHERE thread_id=%s AND parent_id IS NULL ORDER BY created_at", (thread_id,))
     else:
-        c.execute("SELECT id, author, content, created_at FROM posts WHERE thread_id=? AND parent_id=? ORDER BY created_at", (thread_id, parent_id))
+        c.execute("SELECT id, author, content, created_at FROM posts WHERE thread_id=%s AND parent_id=%s ORDER BY created_at", (thread_id, parent_id))
 
     posts = c.fetchall()
     for pid, author, content, created in posts:
@@ -67,7 +63,7 @@ def render_posts(conn, thread_id, parent_id=None, level=0):
             reply_content = st.text_area(f"返信内容（投稿ID {pid}）", height=100, key=f"reply_{pid}")
             if st.button("返信する", key=f"reply_btn_{pid}"):
                 if reply_content.strip():
-                    c.execute("INSERT INTO posts (thread_id, author, content, parent_id) VALUES (?, ?, ?, ?)",
+                    c.execute("INSERT INTO posts (thread_id, author, content, parent_id) VALUES (%s, %s, %s, %s)",
                               (thread_id, reply_author, reply_content, pid))
                     conn.commit()
                     st.success("返信を投稿しました！")
@@ -78,7 +74,6 @@ def render_posts(conn, thread_id, parent_id=None, level=0):
 # === アプリ開始 ===
 init_db()
 st.set_page_config(page_title="LaTeX掲示板", layout="wide")
-st.write("ENV keys:", list(os.environ.keys()))
 
 conn = get_connection()
 c = conn.cursor()
@@ -98,7 +93,7 @@ elif mode == "新規スレッド":
     st.title("📝 新しいスレッドを作成")
     title = st.text_input("スレッドタイトル")
     if st.button("作成する") and title.strip():
-        c.execute("INSERT INTO threads (title) VALUES (?)", (title,))
+        c.execute("INSERT INTO threads (title) VALUES (%s)", (title,))
         conn.commit()
         st.success("スレッドを作成しました")
 
@@ -107,7 +102,7 @@ elif mode == "スレッドを見る":
     query_params = st.query_params
     tid = query_params.get("tid", [None])[0]
     if tid:
-        c.execute("SELECT title FROM threads WHERE id=?", (tid,))
+        c.execute("SELECT title FROM threads WHERE id=%s", (tid,))
         row = c.fetchone()
         if row:
             st.title(f"📌 スレッド: {row[0]}")
@@ -126,7 +121,7 @@ elif mode == "スレッドを見る":
 
             if st.button("投稿する", key="submit_new_post"):
                 if content.strip():
-                    c.execute("INSERT INTO posts (thread_id, author, content, parent_id) VALUES (?, ?, ?, NULL)",
+                    c.execute("INSERT INTO posts (thread_id, author, content, parent_id) VALUES (%s, %s, %s, NULL)",
                               (tid, author, content))
                     conn.commit()
                     st.success("投稿しました！")
