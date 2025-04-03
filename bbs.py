@@ -3,6 +3,9 @@ import psycopg2
 import re
 import os
 
+st.write("Secrets available:", list(st.secrets.keys()))
+
+
 # === DB接続 ===
 def get_connection():
     return psycopg2.connect(
