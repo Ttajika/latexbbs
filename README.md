@@ -1,1 +1,1 @@
-# latexbbs
+# 授業用のbbs
