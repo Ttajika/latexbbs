@@ -3,18 +3,19 @@ import psycopg2
 import re
 import os
 
-st.write("Secrets available:", list(st.secrets.keys()))
 
 
 # === DB接続 ===
+
 def get_connection():
     return psycopg2.connect(
-        dbname=st.secrets["dbname"],
-        user=st.secrets["user"],
-        password=st.secrets["password"],
-        host=st.secrets["host"],
-        port=st.secrets["port"]
+        dbname=os.environ["dbname"],
+        user=os.environ["user"],
+        password=os.environ["password"],
+        host=os.environ["host"],
+        port=os.environ["port"]
     )
+
 
 
 def init_db():
@@ -77,6 +78,7 @@ def render_posts(conn, thread_id, parent_id=None, level=0):
 # === アプリ開始 ===
 init_db()
 st.set_page_config(page_title="LaTeX掲示板", layout="wide")
+st.write("ENV keys:", list(os.environ.keys()))
 
 conn = get_connection()
 c = conn.cursor()
