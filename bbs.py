@@ -99,10 +99,8 @@ if mode == "スレッド一覧":
     c.execute("SELECT id, title FROM threads ORDER BY created_at DESC")
     threads = c.fetchall()
     for tid, title in threads:
-        # リンククリックで query_params をセット
-        if st.button(f"📌 {title}", key=f"thread_btn_{tid}"):
-            st.query_params(mode="スレッドを見る", tid=str(tid))
-            st.rerun()
+        st.markdown(f"### [{title}](?mode=スレッドを見る&tid={tid})")
+
 
 
 # === 新規スレッド作成 ===
