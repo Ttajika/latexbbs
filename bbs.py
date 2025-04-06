@@ -101,7 +101,7 @@ if mode == "スレッド一覧":
     for tid, title in threads:
         # リンククリックで query_params をセット
         if st.button(f"📌 {title}", key=f"thread_btn_{tid}"):
-            st.experimental_set_query_params(mode="スレッドを見る", tid=str(tid))
+            st.query_params(mode="スレッドを見る", tid=str(tid))
             st.rerun()
 
 
