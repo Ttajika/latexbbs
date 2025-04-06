@@ -18,24 +18,22 @@ def init_db():
     conn = get_connection()
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS threads (
-                    id INTEGER PRIMARY KEY,
+                    id SERIAL PRIMARY KEY,
                     title TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
     c.execute('''CREATE TABLE IF NOT EXISTS posts (
-                    id INTEGER PRIMARY KEY,
-                    thread_id INTEGER,
+                    id SERIAL PRIMARY KEY,
+                    thread_id INTEGER REFERENCES threads(id),
                     author TEXT,
                     content TEXT,
-                    parent_id INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY(thread_id) REFERENCES threads(id),
-                    FOREIGN KEY(parent_id) REFERENCES posts(id)
+                    parent_id INTEGER REFERENCES posts(id),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )''')
     conn.commit()
     conn.close()
 
-# === LaTeXレンダリング（$$...$$をst.latex、その他はmarkdown）
+# === LaTeXレンダリング ===
 def render_content(content):
     parts = re.split(r'(\$\$.*?\$\$)', content, flags=re.DOTALL)
     for part in parts:
@@ -48,9 +46,9 @@ def render_content(content):
 def render_posts(conn, thread_id, parent_id=None, level=0):
     c = conn.cursor()
     if parent_id is None:
-        c.execute("SELECT id, author, content, created_at FROM posts WHERE thread_id=? AND parent_id IS NULL ORDER BY created_at", (thread_id,))
+        c.execute("SELECT id, author, content, created_at FROM posts WHERE thread_id=%s AND parent_id IS NULL ORDER BY created_at", (thread_id,))
     else:
-        c.execute("SELECT id, author, content, created_at FROM posts WHERE thread_id=? AND parent_id=? ORDER BY created_at", (thread_id, parent_id))
+        c.execute("SELECT id, author, content, created_at FROM posts WHERE thread_id=%s AND parent_id=%s ORDER BY created_at", (thread_id, parent_id))
 
     posts = c.fetchall()
     for pid, author, content, created in posts:
@@ -63,7 +61,7 @@ def render_posts(conn, thread_id, parent_id=None, level=0):
             reply_content = st.text_area(f"返信内容（投稿ID {pid}）", height=100, key=f"reply_{pid}")
             if st.button("返信する", key=f"reply_btn_{pid}"):
                 if reply_content.strip():
-                    c.execute("INSERT INTO posts (thread_id, author, content, parent_id) VALUES (?, ?, ?, ?)",
+                    c.execute("INSERT INTO posts (thread_id, author, content, parent_id) VALUES (%s, %s, %s, %s)",
                               (thread_id, reply_author, reply_content, pid))
                     conn.commit()
                     st.success("返信を投稿しました！")
@@ -75,32 +73,51 @@ def render_posts(conn, thread_id, parent_id=None, level=0):
 init_db()
 st.set_page_config(page_title="LaTeX掲示板", layout="wide")
 
+# === セッションステート初期化 ===
+if "mode" not in st.session_state:
+    st.session_state.mode = "スレッド一覧"
+if "tid" not in st.session_state:
+    st.session_state.tid = None
+
+# === サイドメニュー（ボタン） ===
+st.sidebar.markdown("### 📋 メニュー")
+if st.sidebar.button("📚 スレッド一覧"):
+    st.session_state.mode = "スレッド一覧"
+    st.session_state.tid = None
+    st.rerun()
+
+if st.sidebar.button("📝 新規スレッド"):
+    st.session_state.mode = "新規スレッド"
+    st.session_state.tid = None
+    st.rerun()
+
+# === DB接続 ===
 conn = get_connection()
 c = conn.cursor()
 
-mode = st.sidebar.radio("📋 メニュー", ["スレッド一覧", "新規スレッド", "スレッドを見る"])
-
 # === スレッド一覧 ===
-if mode == "スレッド一覧":
+if st.session_state.mode == "スレッド一覧":
     st.title("📚 スレッド一覧")
     c.execute("SELECT id, title FROM threads ORDER BY created_at DESC")
     threads = c.fetchall()
     for tid, title in threads:
-        st.markdown(f"### [{title}](?mode=スレッドを見る&tid={tid})")
+        if st.button(f"📌 {title}", key=f"thread_btn_{tid}"):
+            st.session_state.mode = "スレッドを見る"
+            st.session_state.tid = tid
+            st.rerun()
 
 # === 新規スレッド作成 ===
-elif mode == "新規スレッド":
+elif st.session_state.mode == "新規スレッド":
     st.title("📝 新しいスレッドを作成")
     title = st.text_input("スレッドタイトル")
     if st.button("作成する") and title.strip():
-        c.execute("INSERT INTO threads (title) VALUES (?)", (title,))
+        c.execute("INSERT INTO threads (title) VALUES (%s)", (title,))
         conn.commit()
         st.success("スレッドを作成しました")
 
 # === スレッド閲覧 & 投稿 ===
-elif mode == "スレッドを見る":
-    query_params = st.query_params
-    tid = query_params.get("tid", [None])[0]
+elif st.session_state.mode == "スレッドを見る":
+    tid = st.session_state.tid
     if tid:
         c.execute("SELECT title FROM threads WHERE id=%s", (tid,))
         row = c.fetchone()
@@ -121,12 +138,19 @@ elif mode == "スレッドを見る":
 
             if st.button("投稿する", key="submit_new_post"):
                 if content.strip():
-                    c.execute("INSERT INTO posts (thread_id, author, content, parent_id) VALUES (?, ?, ?, NULL)",
+                    c.execute("INSERT INTO posts (thread_id, author, content, parent_id) VALUES (%s, %s, %s, NULL)",
                               (tid, author, content))
                     conn.commit()
                     st.success("投稿しました！")
                     st.rerun()
+
+            # 🔙 スレッド一覧に戻るボタン
+            st.markdown("---")
+            if st.button("📚 スレッド一覧に戻る"):
+                st.session_state.mode = "スレッド一覧"
+                st.session_state.tid = None
+                st.rerun()
         else:
             st.error("スレッドが見つかりませんでした。")
     else:
-        st.warning("スレッドIDが指定されていません。")
+        st.warning("スレッドが指定されていません。")
