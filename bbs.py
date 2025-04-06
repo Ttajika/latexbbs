@@ -83,7 +83,15 @@ st.set_page_config(page_title="LaTeX掲示板", layout="wide")
 conn = get_connection()
 c = conn.cursor()
 
-mode = st.sidebar.radio("📋 メニュー", ["スレッド一覧", "新規スレッド", "スレッドを見る"])
+query_params = st.query_params
+tid = query_params.get("tid", [None])[0]
+url_mode = query_params.get("mode", [None])[0]
+
+# サイドバーの選択と同期
+if url_mode:
+    mode = url_mode
+else:
+    mode = st.sidebar.radio("📋 メニュー", ["スレッド一覧", "新規スレッド", "スレッドを見る"])
 
 # === スレッド一覧 ===
 if mode == "スレッド一覧":
@@ -91,7 +99,11 @@ if mode == "スレッド一覧":
     c.execute("SELECT id, title FROM threads ORDER BY created_at DESC")
     threads = c.fetchall()
     for tid, title in threads:
-        st.markdown(f"### [{title}](?mode=スレッドを見る&tid={tid})")
+        # リンククリックで query_params をセット
+        if st.button(f"📌 {title}", key=f"thread_btn_{tid}"):
+            st.experimental_set_query_params(mode="スレッドを見る", tid=str(tid))
+            st.rerun()
+
 
 # === 新規スレッド作成 ===
 elif mode == "新規スレッド":
