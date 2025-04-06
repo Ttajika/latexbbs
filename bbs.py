@@ -102,7 +102,7 @@ elif mode == "スレッドを見る":
     query_params = st.query_params
     tid = query_params.get("tid", [None])[0]
     if tid:
-        c.execute("SELECT title FROM threads WHERE id=?", (tid,))
+        c.execute("SELECT title FROM threads WHERE id=%s", (tid,))
         row = c.fetchone()
         if row:
             st.title(f"📌 スレッド: {row[0]}")
